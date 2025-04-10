@@ -1,9 +1,6 @@
 {
   "exclude_files": [
-    "/path/to/fileA.cs",
-    "/path/to/fileB.cs",
-    "/path/to/fileC.cs",
-    "/path/to/fileD.cs"
+    "File/to/exclude.cs"
   ],
   "input_filetype": "Csharp",
   "output": {
@@ -13,7 +10,8 @@
     "hide_implemented_interface_methods": true,
     "hide_implemented_interface_properties": true,
     "exclude_namespaces": [
-      "My.Unwanted.Module"
-    ]
+      "My.Namespace.Here"
+    ],
+    "show_dependencies": true
   }
 }

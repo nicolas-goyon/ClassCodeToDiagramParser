@@ -1,34 +1,19 @@
 # plantuml_display.py
 
+from .display_utils import extract_base_types, should_exclude_package
+
+
 class PlantUMLDiagram:
     def __init__(self, project, output_config):
-        """
-        Initialize the PlantUMLDiagram generator.
-
-        :param project: The project instance containing global types, namespaces, etc.
-        :param output_config: Dictionary containing output settings, e.g.:
-             {
-                 "mode": "file",               // "console" or "file"
-                 "file": "diagram.md",
-                 "diagram": "PlantUML",
-                 "hide_implemented_interface_methods": true,
-                 "hide_implemented_interface_properties": true,
-                 "exclude_namespaces": [ ... ]  // Namespaces to be excluded from the diagram.
-             }
-        """
         self.project = project
         self.output_config = output_config or {}
         self.hide_methods = self.output_config.get("hide_implemented_interface_methods", True)
         self.hide_properties = self.output_config.get("hide_implemented_interface_properties", True)
         self.exclude_namespaces = set(self.output_config.get("exclude_namespaces", []))
-    
+        # New flag to enable dependency links
+        self.show_dependencies = self.output_config.get("show_dependencies", False)
+
     def generate(self):
-        """
-        Generate and return a PlantUML class diagram as a string.
-        
-        The method makes use of the excluded namespaces specified in the output configuration.
-        :return: A string containing the PlantUML diagram.
-        """
         diagram_lines = ["@startuml"]
 
         # Build dictionaries for interface methods and properties.
@@ -60,18 +45,107 @@ class PlantUMLDiagram:
 
         diagram_lines.append("")  # Blank line before relationships.
 
-        # Gather all types (global and nested) to render inheritance relationships.
+        # Render inheritance relationships.
         all_types = list(self.project.global_types)
         for ns_obj in self.project.namespaces.values():
+            if ns_obj.full_name in self.exclude_namespaces:
+                continue  # Skip entire namespaces
             all_types.extend(self.get_all_types(ns_obj))
-
-        # Render inheritance relationships.
         for ptype in all_types:
+            if should_exclude_package(ptype.namespace, self.exclude_namespaces):
+                continue
             for base in ptype.bases:
                 diagram_lines.append(f"{ptype.name} --|> {base}")
 
+        # Render dependency links if enabled.
+        if self.show_dependencies:
+            dependency_links = self.build_dependency_links(all_types)
+            diagram_lines.extend(dependency_links)
+
         diagram_lines.append("@enduml")
         return "\n".join(diagram_lines)
+
+    def build_dependency_links(self, all_types):
+        """
+        Build dependency links between types.
+        A dependency is added if a type (class/interface) uses another type
+        in its properties, method parameters, or method return types.
+        For classes, if the dependency is already defined by one of its parent interfaces
+        (and the corresponding hide flag is set), then the dependency arrow will be omitted.
+        """
+        # Create a lookup of types by name.
+        type_lookup = {ptype.name: ptype for ptype in all_types}
+        dependency_links = set()  # Using a set to avoid duplicates.
+
+        for ptype in all_types:
+            current_name = ptype.name
+            if should_exclude_package(ptype.namespace, self.exclude_namespaces):
+                continue
+            # For classes, collect dependency types inherited from parent interfaces.
+            inherited_dependency_types = set()
+            if ptype.kind == "class":
+                for base_name in ptype.bases:
+                    if base_name in type_lookup:
+                        parent = type_lookup[base_name]
+                        if parent.kind == "interface":
+                            # From parent's properties.
+                            for prop in parent.properties:
+                                inherited_dependency_types.add(prop.property_type.strip())
+                            # From parent's methods.
+                            for method in parent.methods:
+                                for param in method.parameters:
+                                    inherited_dependency_types.add(param.param_type.strip())
+                                if method.return_type:
+                                    inherited_dependency_types.add(method.return_type.strip())
+
+            # Process property dependencies.
+            for prop in ptype.properties:
+                base_types = extract_base_types(prop.property_type)
+                for base in base_types:
+                    if base in type_lookup and base != current_name:
+                        # If this class inherits an interface already using this type,
+                        # and the config to hide interface properties is enabled, skip.
+                        if (
+                            ptype.kind == "class" and 
+                            self.hide_properties and 
+                            base in inherited_dependency_types
+                        ):
+                            continue
+                        dependency_links.add(f"{current_name} ..> {base}")
+
+            # Process method dependencies.
+            for method in ptype.methods:
+                # Check each parameter.
+                for param in method.parameters:
+                    base_types = extract_base_types(param.param_type)
+                    for base in base_types:
+                        if base in type_lookup and base != current_name:
+                            # Skip if the parent interface already defines the dependency
+                            # and the flag to hide methods is enabled.
+                            if (
+                                ptype.kind == "class" and 
+                                self.hide_methods and 
+                                base in inherited_dependency_types
+                            ):
+                                continue
+                            dependency_links.add(f"{current_name} ..> {base}")
+                # Check method return type.
+                if method.return_type:
+                    base_types = extract_base_types(method.return_type)
+                    for base in base_types:
+                        if base in type_lookup and base != current_name:
+                            if (
+                                ptype.kind == "class" and 
+                                self.hide_methods and 
+                                base in inherited_dependency_types
+                            ):
+                                continue
+                            dependency_links.add(f"{current_name} ..> {base}")
+
+        # Return the dependency links as a sorted list for consistency.
+        return sorted(dependency_links)
+
+
 
     def build_interface_methods_dict(self):
         """
@@ -225,6 +299,7 @@ class PlantUMLDiagram:
         for sub in ns_obj.sub_namespaces.values():
             types.extend(self.get_all_types(sub))
         return types
+
 
 def create_generator(project, output_config):
     return PlantUMLDiagram(project, output_config)

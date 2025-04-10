@@ -6,15 +6,15 @@ def load_config(config_path):
     """Load a JSON external config file with default values."""
     default_config = {
         "exclude_files": [],
-        "exclude_namespaces": [],  # Legacy: now moved inside output; kept here for backward compatibility if needed.
         "input_filetype": "Csharp",
         "output": {
-            "mode": "console",         # "console" or "file"
+            "mode": "console",         
             "file": "diagram.md",
             "diagram": "MermaidClassDiagram",
             "hide_implemented_interface_methods": True,
             "hide_implemented_interface_properties": True,
-            "exclude_namespaces": []     # Now moved here under output.
+            "exclude_namespaces": [],
+            "show_dependencies" : False 
         }
     }
     try:
@@ -92,7 +92,17 @@ def main():
     # Use the parser module to parse the folder.
     classes = parser_module.parse_project(folder_path, exclude_files=config.get("exclude_files"))
     
-    # print(classes.describe())
+    # Debug diagram class.
+    debug = False
+    if debug:
+        output_file = "debug.yaml"
+        try:
+            with open(output_file, "w", encoding="utf-8") as out:
+                out.write(classes.describe())
+            print(f"debug written to debug.yaml")
+        except Exception as e:
+            print(f"Error writing to file: {e}")
+
     # Dynamically instantiate the diagram generator using a factory function.
     try:
         # We assume that each diagram module exposes a function 'create_generator'
