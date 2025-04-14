@@ -2,7 +2,7 @@
 import os
 import re
 import regex  # requires: pip install regex
-from data.project import Project, convert_parsed_type
+from CodeToClassDiagram.data.project import Project, convert_parsed_type
 
 # -----------------------------
 # Module‑level regex patterns
@@ -269,7 +269,6 @@ def parse_project(folder_path, exclude_files=None):
                 raw_types.extend(parse_cs_file(file_path, exclude_files))
     
     # Create a Project object from the raw data.
-    from data.project import Project, convert_parsed_type  # Import here if there are import issues with relative paths.
     project = Project()
     for raw in raw_types:
         project.add_type(convert_parsed_type(raw))

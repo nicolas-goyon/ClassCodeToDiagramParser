@@ -1,6 +1,5 @@
 {
   "exclude_files": [
-    "File/to/exclude.cs"
   ],
   "input_filetype": "Csharp",
   "output": {
@@ -10,7 +9,6 @@
     "hide_implemented_interface_methods": true,
     "hide_implemented_interface_properties": true,
     "exclude_namespaces": [
-      "My.Namespace.Here"
     ],
     "show_dependencies": true
   }
