@@ -1,0 +1,35 @@
+# Fichiers Python compilés
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Dossiers générés par la construction du package
+build/
+dist/
+*.egg-info/
+
+# Environnements virtuels
+env/
+venv/
+ENV/
+VENV/
+
+# Fichiers temporaires et logs
+*.log
+.cache/
+.tox/
+
+# Fichiers de couverture de tests
+.coverage
+
+# Fichiers générés par OS
+.DS_Store
+Thumbs.db
+
+# Répertoires d'IDE/éditeurs
+.vscode/
+.idea/
+
+# Fichiers de configuration personnels
+*.ini
+*.cfg
